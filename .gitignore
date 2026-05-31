@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-preview/
+*.tgz
+*.wav
+*.mp3
+*.report.json
+*.tmp.wav
+.DS_Store

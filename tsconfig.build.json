@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "allowImportingTsExtensions": false,
+    "paths": {}
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/preview/**", "src/cli/templates/**"]
+}

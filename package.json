@@ -1,0 +1,52 @@
+{
+  "name": "codesong",
+  "version": "0.1.0",
+  "description": "Code songs, render audio — a declarative TypeScript/JSX music framework.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["music", "audio", "composition", "jsx", "synthesis", "midi", "generative"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/core/jsx-runtime.d.ts",
+      "default": "./dist/core/jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/core/jsx-runtime.d.ts",
+      "default": "./dist/core/jsx-runtime.js"
+    },
+    "./engine": {
+      "types": "./dist/renderer/engine.d.ts",
+      "default": "./dist/renderer/engine.js"
+    }
+  },
+  "bin": {
+    "codesong": "./dist/cli/index.js"
+  },
+  "files": ["dist", "CODESONG.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "render": "tsx src/cli/index.ts render",
+    "preview": "vite",
+    "spike": "tsx scripts/spike.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "ffmpeg-static": "^5.2.0",
+    "node-web-audio-api": "^1.0.4",
+    "tonal": "^6.4.1",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "codesong-song",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "codesong render song.tsx -o out.wav",
+    "mp3": "codesong render song.tsx -o out.mp3",
+    "presets": "codesong presets"
+  },
+  "dependencies": {
+    "codesong": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

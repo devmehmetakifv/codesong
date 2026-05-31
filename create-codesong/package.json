@@ -1,0 +1,12 @@
+{
+  "name": "create-codesong",
+  "version": "0.1.0",
+  "description": "Scaffold a new Codesong project: npx create-codesong@latest my-song",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "create-codesong": "./index.js"
+  },
+  "files": ["index.js", "template"],
+  "keywords": ["codesong", "music", "scaffold", "create", "starter"]
+}
