@@ -1,6 +1,7 @@
 /** Codesong public API. */
 export * from "./core/components.js";
 export { compile } from "./core/compile.js";
+export { humanize, resolveHumanize, DEFAULT_HUMANIZE } from "./core/humanize.js";
 export * from "./core/ir.js";
 export * from "./core/theory.js";
 export { durationToTicks } from "./core/time.js";

@@ -30,6 +30,9 @@ export function getTag(type: unknown): string | undefined {
   return typeof type === "function" ? (type as { codesongTag?: string }).codesongTag : undefined;
 }
 
+/** Performance humanization: `true`/`false`, a 0..1 master amount, or fine control. */
+export type HumanizeProp = boolean | number | { timing?: number; velocity?: number; swing?: number };
+
 export interface SongProps {
   title?: string;
   tempo?: number;
@@ -38,6 +41,12 @@ export interface SongProps {
   timeSignature?: [number, number];
   sampleRate?: number;
   seed?: number;
+  /** Performance feel (off by `false`). Tracks may override. */
+  humanize?: HumanizeProp;
+  /** Swing shorthand 0..1 — delays off-beat eighths toward a shuffle. */
+  swing?: number;
+  /** Reverb room character: "ambience" | "room" | "plate" | "hall". */
+  room?: string;
   children?: unknown;
 }
 
@@ -62,7 +71,45 @@ export interface TrackProps {
   velocity?: number;
   /** Repeat this track's content to fill the enclosing section. */
   loop?: boolean;
+  /** Performance feel for this track (overrides the song's). */
+  humanize?: HumanizeProp;
+  /** Swing shorthand 0..1 for this track. */
+  swing?: number;
+  /** Mix-group name; tracks sharing one sum into a shared group bus before master. */
+  bus?: string;
   children?: unknown;
+}
+
+/**
+ * A per-track insert effect, declared as a child of a `<Track>`. Effects apply in
+ * document order, between the instrument and the track fader.
+ *
+ *   delay   — echoes; `time` ("8n"/seconds), `feedback` 0..1, `mix` 0..1
+ *   chorus  — thickening modulated delay; `rate` Hz, `depth` ms, `mix` 0..1
+ *   drive   — overdrive/saturation; `amount` 0..1, `mix` 0..1
+ *   tremolo — amplitude wobble; `rate` Hz, `depth` 0..1
+ *   filter  — static lowpass/highpass; `mode`, `cutoff` Hz, `q`
+ */
+export interface EffectProps {
+  type: "delay" | "chorus" | "drive" | "tremolo" | "filter";
+  /** delay: note value ("8n") or seconds. */
+  time?: string | number;
+  /** delay feedback 0..1. */
+  feedback?: number;
+  /** delay/chorus/drive wet mix 0..1. */
+  mix?: number;
+  /** chorus/tremolo LFO rate in Hz. */
+  rate?: number;
+  /** chorus depth in ms / tremolo depth 0..1. */
+  depth?: number;
+  /** drive amount 0..1. */
+  amount?: number;
+  /** filter mode. */
+  mode?: "lowpass" | "highpass";
+  /** filter cutoff in Hz. */
+  cutoff?: number;
+  /** filter resonance. */
+  q?: number;
 }
 
 export interface ProgressionProps {
@@ -131,6 +178,8 @@ export const Note = host<NoteProps>("note");
 export const Rest = host<RestProps>("rest");
 export const Pattern = host<PatternProps>("pattern");
 export const Arp = host<ArpProps>("arp");
+/** Per-track insert effect (delay/chorus/drive/tremolo/filter). */
+export const Effect = host<EffectProps>("effect");
 /** Group children in parallel (same start time). */
 export const Stack = host<{ children?: unknown }>("stack");
 /** Group children sequentially (default behavior; explicit form). */

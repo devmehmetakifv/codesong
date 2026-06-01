@@ -1,16 +1,17 @@
 /** Codesong Studio — live in-browser playback using the same engine as the renderer. */
-import { compile, scoreDurationTicks, ticksToSeconds, type MusicChild } from "codesong";
+import { compile, humanize, scoreDurationTicks, ticksToSeconds, type MusicChild } from "codesong";
 import { scheduleScore } from "../renderer/engine.js";
+
+/** Compile + humanize, matching the offline renderer's pipeline exactly. */
+const prepare = (m: MusicChild) => humanize(compile(m));
 import country from "../../examples/cheerful-country/song.tsx";
 import lofi from "../../examples/lofi-beat/song.tsx";
 import blues from "../../examples/blues-piano/song.tsx";
-import gta from "../../examples/gta-san-andreas/song.tsx";
 
 const SONGS: Record<string, MusicChild> = {
   "Cheerful Country": country,
   "Lo-fi Beat": lofi,
   "Blues Piano": blues,
-  "San Andreas (Tribute)": gta,
 };
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -36,7 +37,7 @@ let startTime = 0;
 let totalSec = 0;
 
 function describe(name: string) {
-  const score = compile(SONGS[name]);
+  const score = prepare(SONGS[name]);
   const { tempo, ppq } = score.meta;
   totalSec = ticksToSeconds(scoreDurationTicks(score), tempo, ppq);
   infoEl.textContent = `${score.meta.title} — ${tempo} BPM, key ${score.meta.key ?? "?"} · ${totalSec.toFixed(1)}s`;
@@ -74,7 +75,7 @@ function tick() {
 
 playBtn.addEventListener("click", () => {
   stop();
-  const score = compile(SONGS[songSel.value]);
+  const score = prepare(SONGS[songSel.value]);
   ctx = new AudioContext();
   startTime = ctx.currentTime + 0.12;
   scheduleScore(ctx, score, startTime);

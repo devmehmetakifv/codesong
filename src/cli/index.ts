@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { resolve, basename } from "node:path";
 import { writeFileSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { compile } from "../core/compile.js";
+import { humanize } from "../core/humanize.js";
 import { renderScore } from "../renderer/render.js";
 import { buildReport, formatReport } from "../analyze/report.js";
 import { listPresets } from "../instruments/synths.js";
@@ -47,7 +48,9 @@ async function cmdRender(args: string[]) {
   const out = (flags.o as string) ?? (flags.out as string) ?? (flags.mp3 ? "out.mp3" : "out.wav");
   console.log(`Compiling ${basename(file)}…`);
   const song = await loadSong(file);
-  const score = compile(song);
+  // Compile to the mechanical grid, then humanize into a performed score that both
+  // the renderer and the analysis report consume.
+  const score = humanize(compile(song));
 
   console.log(`Rendering → ${out}…`);
   const t0 = Date.now();

@@ -11,6 +11,8 @@ import {
   DEFAULT_PPQ,
   DEFAULT_SAMPLE_RATE,
   ticksPerBar,
+  ticksToSeconds,
+  type EffectSpec,
   type InstrumentSpec,
   type NoteEvent,
   type ScoreIR,
@@ -19,6 +21,8 @@ import {
 } from "./ir.js";
 import { isElement, Fragment, type MusicChild, type MusicElement } from "./jsx-runtime.js";
 import { getTag } from "./components.js";
+import { resolveHumanize, DEFAULT_HUMANIZE } from "./humanize.js";
+import type { HumanizeSettings } from "./ir.js";
 import { durationToTicks } from "./time.js";
 import { chordToMidi, chordRootMidi, noteNameToMidi } from "./theory.js";
 
@@ -299,6 +303,43 @@ function instrumentSpec(instrument: string): InstrumentSpec {
   return { kind: "synth", preset: instrument };
 }
 
+/** Parse `<Effect>` host elements into renderer-ready specs (with musical defaults). */
+function parseEffects(els: MusicElement[], ppq: number, tempo: number): EffectSpec[] {
+  const out: EffectSpec[] = [];
+  for (const el of els) {
+    const p = el.props;
+    switch (p.type as string) {
+      case "delay": {
+        const t = (p.time as string | number) ?? "8n";
+        const timeSec = typeof t === "number" ? t : ticksToSeconds(durationToTicks(t, ppq), tempo, ppq);
+        out.push({ type: "delay", timeSec, feedback: num(p.feedback, 0.3), mix: num(p.mix, 0.3) });
+        break;
+      }
+      case "chorus":
+        out.push({ type: "chorus", rate: num(p.rate, 1.2), depthMs: num(p.depth, 4), mix: num(p.mix, 0.4) });
+        break;
+      case "drive":
+        out.push({ type: "drive", amount: num(p.amount, 0.4), mix: num(p.mix, 0.6) });
+        break;
+      case "tremolo":
+        out.push({ type: "tremolo", rate: num(p.rate, 5), depth: num(p.depth, 0.5) });
+        break;
+      case "filter":
+        out.push({
+          type: "filter",
+          mode: (p.mode as "lowpass" | "highpass") ?? "lowpass",
+          cutoff: num(p.cutoff, 1200),
+          q: num(p.q, 1),
+        });
+        break;
+      default:
+        // Fail loud, not silent: a typo'd type would otherwise vanish with no sound.
+        console.warn(`codesong: unknown <Effect type="${String(p.type)}">, ignored`);
+    }
+  }
+  return out;
+}
+
 export function compile(root: MusicChild): ScoreIR {
   const songEl = resolve(root);
   if (!isElement(songEl) || getTag(songEl.type) !== "song") {
@@ -307,6 +348,10 @@ export function compile(root: MusicChild): ScoreIR {
   const sp = songEl.props;
   const ppq = num(sp.ppq, DEFAULT_PPQ);
   const timeSignature = (sp.timeSignature as [number, number]) ?? [4, 4];
+  // Song-level feel: a `swing` prop seeds the base swing before humanize resolution.
+  const baseFeel: HumanizeSettings =
+    sp.swing != null ? { ...DEFAULT_HUMANIZE, swing: num(sp.swing, 0) } : DEFAULT_HUMANIZE;
+  const songHumanize = resolveHumanize(sp.humanize, baseFeel);
   const meta = {
     title: (sp.title as string) ?? "Untitled",
     tempo: num(sp.tempo, 120),
@@ -315,6 +360,8 @@ export function compile(root: MusicChild): ScoreIR {
     ppq,
     sampleRate: num(sp.sampleRate, DEFAULT_SAMPLE_RATE),
     seed: num(sp.seed, 1),
+    humanize: songHumanize,
+    room: sp.room as string | undefined,
   };
   const barTicks = ticksPerBar(ppq, timeSignature);
 
@@ -340,15 +387,19 @@ export function compile(root: MusicChild): ScoreIR {
 
   let sectionStart = 0;
   for (const sec of sectionList) {
-    // Pass 1: emit each track's content once to learn its length.
+    // Pass 1: emit each track's content once to learn its length. `<Effect>` children
+    // are structural (not notes), so split them out before emitting music.
     const perTrack = sec.tracks.map((trackEl) => {
       const instrument = trackEl.props.instrument as string;
       const isDrums = instrument === "drums" || instrument === "drumkit";
       const octave =
         num(trackEl.props.octave, DEFAULT_OCTAVE_BY_INSTRUMENT[instrument] ?? 4);
       const ctx: EmitCtx = { ppq, octave, velocity: num(trackEl.props.velocity, 0.8), isDrums };
-      const emitted = emitSequence(trackEl.children.map(resolve), 0, ctx);
-      return { trackEl, emitted, instrument };
+      const flat = trackEl.children.flatMap(resolveToList);
+      const effectEls = flat.filter((c) => getTag(c.type) === "effect");
+      const musicEls = flat.filter((c) => getTag(c.type) !== "effect");
+      const emitted = emitSequence(musicEls, 0, ctx);
+      return { trackEl, emitted, instrument, effectEls };
     });
 
     const explicitBars = sec.props.bars as number | undefined;
@@ -364,10 +415,16 @@ export function compile(root: MusicChild): ScoreIR {
     });
 
     // Pass 2: place (and loop) content, merge into named tracks.
-    for (const { trackEl, emitted, instrument } of perTrack) {
+    for (const { trackEl, emitted, instrument, effectEls } of perTrack) {
       const name = (trackEl.props.name as string) ?? instrument;
       let track = tracksByName.get(name);
       if (!track) {
+        // Track feel: inherits the song's, with `swing`/`humanize` props overriding.
+        const trackBase =
+          trackEl.props.swing != null
+            ? { ...songHumanize, swing: num(trackEl.props.swing, songHumanize.swing) }
+            : songHumanize;
+        const effects = parseEffects(effectEls, ppq, meta.tempo);
         track = {
           id: name,
           name,
@@ -376,6 +433,9 @@ export function compile(root: MusicChild): ScoreIR {
           gain: num(trackEl.props.gain, 0.8),
           pan: num(trackEl.props.pan, 0),
           reverbSend: num(trackEl.props.reverb, 0),
+          effects: effects.length > 0 ? effects : undefined,
+          bus: trackEl.props.bus as string | undefined,
+          humanize: resolveHumanize(trackEl.props.humanize, trackBase),
         };
         tracksByName.set(name, track);
       }

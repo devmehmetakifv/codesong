@@ -27,6 +27,31 @@ export type InstrumentSpec =
   | { kind: "synth"; preset: string }
   | { kind: "drums"; kit: string };
 
+/**
+ * Resolved per-performance humanization amounts, each 0..1.
+ * Applied by the `humanize` pass as a deterministic, seed-driven post-process so
+ * notes drift off the grid like a real player. 0 everywhere = mechanical (old behavior).
+ */
+export interface HumanizeSettings {
+  /** Micro-timing jitter: how far note starts wander off the grid. */
+  timing: number;
+  /** Velocity (dynamics) variation between notes. */
+  velocity: number;
+  /** Swing: delay of off-beat eighths toward a triplet feel. */
+  swing: number;
+}
+
+/**
+ * A per-track insert effect. Discriminated by `type`; the renderer builds the
+ * matching Web Audio chain in order, between the instrument and the track fader.
+ */
+export type EffectSpec =
+  | { type: "delay"; timeSec: number; feedback: number; mix: number }
+  | { type: "chorus"; rate: number; depthMs: number; mix: number }
+  | { type: "drive"; amount: number; mix: number }
+  | { type: "tremolo"; rate: number; depth: number }
+  | { type: "filter"; mode: "lowpass" | "highpass"; cutoff: number; q: number };
+
 export interface TrackIR {
   id: string;
   name: string;
@@ -38,6 +63,12 @@ export interface TrackIR {
   pan: number;
   /** Reverb bus send amount, 0..1. */
   reverbSend: number;
+  /** Ordered insert effects applied between the instrument and the track fader. */
+  effects?: EffectSpec[];
+  /** Optional mix-group name; tracks sharing one sum into a shared group bus. */
+  bus?: string;
+  /** Resolved humanize amounts for this track (merged Song + Track settings). */
+  humanize?: HumanizeSettings;
 }
 
 export interface SectionIR {
@@ -59,6 +90,10 @@ export interface ScoreMeta {
   sampleRate: number;
   /** Seed for any humanize/randomization, so renders are reproducible. */
   seed: number;
+  /** Song-level resolved humanize defaults (tracks may override). */
+  humanize?: HumanizeSettings;
+  /** Reverb room character: "ambience" | "room" | "plate" | "hall". Default "room". */
+  room?: string;
 }
 
 export interface ScoreIR {

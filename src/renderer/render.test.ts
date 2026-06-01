@@ -63,4 +63,43 @@ describe("render (integration)", () => {
     const b = await renderScore(compile(fixture()), { out: join(tmpdir(), `mc-b-${Date.now()}.wav`) });
     expect(analyzeAudio(a.buffer).rmsDb).toBeCloseTo(analyzeAudio(b.buffer).rmsDb, 5);
   });
+
+  it("master bus produces stereo width and stays below clipping", async () => {
+    // A panned, reverb-sent track should yield genuinely different L/R channels.
+    const tree = h(
+      Song,
+      { tempo: 120, keySignature: "C major", seed: 1, room: "hall" },
+      h(
+        Section,
+        { name: "main", bars: 1 },
+        h(Track, { name: "keys", instrument: "piano", octave: 4, pan: -0.4, reverb: 0.4 }, h(Progression, { chords: ["C", "G"], dur: "2n" })),
+        h(Track, { name: "lead", instrument: "lead", octave: 5, pan: 0.4, reverb: 0.4 }, h(Note, { pitch: "E5", dur: "1n" })),
+      ),
+    );
+    const res = await renderScore(compile(tree), { out: join(tmpdir(), `mc-stereo-${Date.now()}.wav`) });
+    const l = res.buffer.getChannelData(0);
+    const r = res.buffer.getChannelData(1);
+    let diff = 0;
+    for (let i = 0; i < l.length; i++) diff += Math.abs(l[i] - r[i]);
+    expect(diff / l.length).toBeGreaterThan(1e-4); // L and R meaningfully differ
+
+    const f = analyzeAudio(res.buffer);
+    expect(f.clippedSamples).toBe(0);
+    expect(f.peakDb).toBeLessThan(0);
+  });
+
+  it("reverb leaves an audible tail after the last note ends", async () => {
+    const dry = h(
+      Song,
+      { tempo: 120, seed: 1, room: "hall" },
+      h(Section, { name: "m", bars: 1 }, h(Track, { name: "k", instrument: "piano", reverb: 0.9 }, h(Note, { pitch: "C4", dur: "8n" }))),
+    );
+    const res = await renderScore(compile(dry), { out: join(tmpdir(), `mc-tail-${Date.now()}.wav`) });
+    const d = res.buffer.getChannelData(0);
+    // The note is one eighth (~0.25s); energy well after it must come from reverb.
+    const sr = res.sampleRate;
+    let tail = 0;
+    for (let i = Math.floor(1.0 * sr); i < Math.floor(1.5 * sr); i++) tail += d[i] * d[i];
+    expect(Math.sqrt(tail / (0.5 * sr))).toBeGreaterThan(1e-4);
+  });
 });
