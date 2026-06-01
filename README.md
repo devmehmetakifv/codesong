@@ -400,7 +400,7 @@ Project Link: [https://github.com/devmehmetakifv/codesong](https://github.com/de
 [issues-url]: https://github.com/devmehmetakifv/codesong/issues
 [npm-shield]: https://img.shields.io/npm/v/codesong.svg?style=for-the-badge
 [npm-url]: https://www.npmjs.com/package/codesong
-[license-shield]: https://img.shields.io/github/license/devmehmetakifv/codesong.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/devmehmetakifv/codesong?style=for-the-badge
 [license-url]: ./LICENSE
 [TypeScript-shield]: https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white
 [TypeScript-url]: https://www.typescriptlang.org/
